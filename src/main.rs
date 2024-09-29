@@ -2,7 +2,7 @@ mod database; // Import the new module
 
 use database::Counter; // Use the Counter struct from the new file
 use iced::widget::{button, column, text, text_input, Column};
-use iced::{Center, Element, Fill, Theme};
+use iced::{Application, Center, Element, Fill, Theme};
 use tokio;
 
 #[derive(Debug, Clone)]
@@ -67,8 +67,18 @@ impl Counter {
     }
 }
 
-pub fn main() -> iced::Result {
-    let runtime = tokio::runtime::Runtime::new().unwrap();
-    runtime.block_on(async { iced::run("Learning Rust", Counter::update, Counter::view) })
+fn theme(_: &Counter) -> Theme {
+    Theme::TokyoNight
 }
 
+pub fn main() -> iced::Result {
+    // Create a Tokio runtime
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+
+    // Run the application in the Tokio runtime
+    runtime.block_on(async {
+        iced::application("Learning Rust", Counter::update, Counter::view)
+            .theme(theme)
+            .run() // Run the application
+    })
+}
