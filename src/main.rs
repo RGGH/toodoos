@@ -1,36 +1,21 @@
-#![allow(unused)]
-use iced::widget::{button, center, column, text, text_input, Column};
+mod database; // Import the new module
+
+use database::Counter; // Use the Counter struct from the new file
+use iced::widget::{button, column, text, text_input, Column};
 use iced::{Center, Element, Fill, Theme};
-
-use chrono::Utc;
-use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
-use std::sync::Arc; // Add this for Arc
-use surrealkv::{IsolationLevel, Options, Store};
 use tokio;
-
-pub fn main() -> iced::Result {
-    let runtime = tokio::runtime::Runtime::new().unwrap(); // Create a Tokio runtime
-    runtime.block_on(async { iced::run("Learning Rust", Counter::update, Counter::view) })
-}
-
-#[derive(Default, Serialize)]
-struct Counter {
-    value: i64,
-    input_value: String, // Add input_value here
-}
 
 #[derive(Debug, Clone)]
 enum Message {
     Increment,
     Decrement,
-    InputChanged(String), // Keep this for handling input changes
+    InputChanged(String),
     Reset,
     SaveToDatabase,
 }
 
 impl Counter {
-    fn update(&mut self, message: Message) {
+    pub fn update(&mut self, message: Message) {
         match message {
             Message::Increment => {
                 self.value += 1;
@@ -39,17 +24,13 @@ impl Counter {
                 self.value -= 1;
             }
             Message::InputChanged(input) => {
-                self.input_value = input; // Update input_value when input changes
+                self.input_value = input;
             }
             Message::Reset => {
                 self.value = 0;
-                self.input_value.clear(); // Optionally clear the input when reset
-            }
-            Message::InputChanged(input) => {
-                self.input_value = input;
+                self.input_value.clear();
             }
             Message::SaveToDatabase => {
-                // Save data to database asynchronously
                 let input_value = self.input_value.clone();
                 let value = self.value.clone();
 
@@ -63,61 +44,14 @@ impl Counter {
         }
     }
 
-
-
-    async fn save_to_database(&self) -> Result<(), Box<dyn std::error::Error>> {
-        let options = Options {
-            dir: PathBuf::from("."),
-            isolation_level: IsolationLevel::SerializableSnapshotIsolation,
-            ..Default::default()
-        };
-
-        let db = Store::new(options)?;
-        let mut conn = db.begin()?;
-
-        // SAVE the data to surrealkv
-        // Create a unique key based on the current timestamp
-        let key = format!("counter:{}:{}", self.value, Utc::now().timestamp());
-
-        // Convert the Counter instance to a JSON string
-        let counter_json = serde_json::to_string(self)?;
-
-        // Save the data to the database
-        let _ = conn.set(key.as_bytes(), counter_json.as_bytes())?;
-
-        //----------------------- fetch new record!
-        // Retrieve the record we just added
-        let res = conn.get(key.as_bytes());
-        match res {
-            Ok(Some(value_bytes)) => {
-                // Convert the retrieved bytes to a string
-                if let Ok(retrieved_value) = String::from_utf8(value_bytes) {
-                    println!("Record added: {}", retrieved_value);
-                } else {
-                    println!("Error converting bytes to string");
-                }
-            }
-            Ok(None) => println!("Key not found"),
-            Err(e) => println!("Error retrieving key: {:?}", e),
-        }
-
-
-
-
-
-
-        Ok(())
-    }
-
-    fn view(&self) -> Column<Message> {
-        // Create the text input
+    pub fn view(&self) -> Column<Message> {
         let text_input = text_input("Type something...", &self.input_value)
             .on_input(Message::InputChanged)
             .padding(10)
             .size(20);
 
         let content = column![
-            text_input, // Add the text input to the column
+            text_input,
             button("Increment").on_press(Message::Increment),
             text(self.value).size(50),
             button("Decrement").on_press(Message::Decrement),
@@ -125,7 +59,6 @@ impl Counter {
             button("Save").on_press(Message::SaveToDatabase)
         ]
         .width(Fill)
-        //.max_width(500)
         .spacing(10)
         .padding(20)
         .align_x(Center);
@@ -133,3 +66,9 @@ impl Counter {
         content
     }
 }
+
+pub fn main() -> iced::Result {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    runtime.block_on(async { iced::run("Learning Rust", Counter::update, Counter::view) })
+}
+
