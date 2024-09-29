@@ -1,8 +1,9 @@
-mod database; // Import the new module
+mod database; 
 
-use database::Counter; // Use the Counter struct from the new file
-use iced::widget::{button, column, text, text_input, Column};
-use iced::{Application, Center, Element, Fill, Theme};
+use database::Counter; 
+use iced::widget::{button, column, text, text_input, Checkbox, Column};
+use iced::{ Center, Fill, Theme};
+use iced::widget::checkbox;
 use tokio;
 
 #[derive(Debug, Clone)]
@@ -12,11 +13,15 @@ enum Message {
     InputChanged(String),
     Reset,
     SaveToDatabase,
+    CheckboxToggled(bool),
 }
 
 impl Counter {
     pub fn update(&mut self, message: Message) {
         match message {
+            Message::CheckboxToggled(is_checked) => {
+                self.is_checked = is_checked;
+            }
             Message::Increment => {
                 self.value += 1;
             }
@@ -33,9 +38,10 @@ impl Counter {
             Message::SaveToDatabase => {
                 let input_value = self.input_value.clone();
                 let value = self.value.clone();
+                let is_checked = self.is_checked.clone();
 
                 tokio::spawn(async move {
-                    let counter = Counter { value, input_value };
+                    let counter = Counter { value, input_value,is_checked};
                     if let Err(e) = counter.save_to_database().await {
                         println!("Failed to save to database: {:?}", e);
                     }
@@ -50,13 +56,17 @@ impl Counter {
             .padding(10)
             .size(20);
 
+        let checkbox:Checkbox<_> = checkbox("Toggle me!", self.is_checked)
+            .on_toggle(Message::CheckboxToggled);
+
         let content = column![
             text_input,
             button("Increment").on_press(Message::Increment),
             text(self.value).size(50),
             button("Decrement").on_press(Message::Decrement),
             button("Reset").on_press(Message::Reset),
-            button("Save").on_press(Message::SaveToDatabase)
+            button("Save").on_press(Message::SaveToDatabase),
+            checkbox
         ]
         .width(Fill)
         .spacing(10)

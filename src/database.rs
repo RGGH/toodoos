@@ -8,6 +8,7 @@ use surrealkv::{IsolationLevel, Options, Store};
 pub struct Counter {
     pub value: i64,
     pub input_value: String,
+    pub is_checked: bool
 }
 
 impl Counter {
